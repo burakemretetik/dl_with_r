@@ -1,3 +1,5 @@
+# General utils ----------------------------------------------------------------
+
 relu = function(x){
   ifelse(x<0, 0, x)
 }
@@ -53,4 +55,32 @@ one_hot_encode <- function(y, classes = 10) {
   indices <- cbind(y + 1, 1:n_samples)
   y_encoded[indices] <- 1
   return(y_encoded)
+}
+
+# View an image in the fashion mnist dataset
+view_image <- function(index, X, Y) {
+  # Fashion MNIST Class Mapping
+  label_map <- c("T-shirt/top", "Trouser", "Pullover", "Dress", "Coat",
+                 "Sandal", "Shirt", "Sneaker", "Bag", "Ankle boot")
+
+  # 1. Extract the specific image
+  # Input X is expected to be [N, 28, 28, 1]
+  # We extract the 28x28 matrix directly
+  img_mat <- X[index, , , 1]
+
+  # 2. Orient for R plotting
+  # R image() plots from bottom-left, so we transpose and reverse columns
+  # to make it look like a proper image
+  img_mat_viz <- t(apply(img_mat, 2, rev))
+
+  # 3. Decode One-Hot Label
+  # Y is [10, N], so we look at the column
+  label_idx <- which.max(Y[, index]) - 1 # Convert 1-10 to 0-9
+  label_name <- label_map[label_idx + 1]
+
+  # 4. Plot
+  image(1:28, 1:28, img_mat_viz,
+        col = gray((0:255)/255),
+        axes = FALSE,
+        main = paste0(label_name, " (", label_idx, ")"))
 }
