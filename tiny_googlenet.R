@@ -14,8 +14,9 @@ train_transforms <- function(img) {
 ds_train_full <- fashion_mnist_dataset(root = "./data", train = TRUE, download = TRUE, transform = train_transforms)
 ds_val_full   <- fashion_mnist_dataset(root = "./data", train = FALSE, download = TRUE, transform = train_transforms)
 
-dl_train <- dataloader(ds_train_full, batch_size = 64, shuffle = TRUE)
-dl_val   <- dataloader(ds_val_full, batch_size = 64, shuffle = FALSE)
+# Increased Batch Size to 128 for speed (Less overhead per epoch)
+dl_train <- dataloader(ds_train_full, batch_size = 128, shuffle = TRUE)
+dl_val   <- dataloader(ds_val_full, batch_size = 128, shuffle = FALSE)
 
 # 2. NiN Architecture Components -----------------------------------------------
 
@@ -73,16 +74,16 @@ model <- NiN(num_classes = 10)
 model$to(device = device)
 
 # Initialization (Xavier is crucial for 1x1 convs)
-# We manually initialize weights because deep 1x1 networks are hard to train
 for (p in model$parameters) {
   if (length(p$shape) > 1) nn_init_xavier_uniform_(p)
 }
 
 criterion <- nn_cross_entropy_loss()
-optimizer <- optim_adam(model$parameters, lr = 0.001) # NiN likes Adam
+optimizer <- optim_adam(model$parameters, lr = 0.001)
 
 # History storage
-num_epochs <- 5
+# Increased epochs for smoother plots
+num_epochs <- 15
 history <- data.frame(
   epoch = 1:num_epochs,
   train_loss = numeric(num_epochs),
@@ -130,7 +131,8 @@ for (epoch in 1:num_epochs) {
     train_correct <- train_correct + step_res$correct
     train_total <- train_total + step_res$total
 
-    if (batch_idx %% 50 == 0) {
+    # Less frequent printing since batch size is larger (steps are fewer)
+    if (batch_idx %% 20 == 0) {
       cat(sprintf("Epoch %d | Batch %d | Loss: %.4f\r", epoch, batch_idx, step_res$loss))
       flush.console()
     }
@@ -177,6 +179,7 @@ for (epoch in 1:num_epochs) {
   history$train_acc[epoch]  <- avg_train_acc
   history$val_acc[epoch]    <- avg_val_acc
 
+  # Expanded print statement to show Val Loss and Accuracy clearly
   cat(sprintf(">> Epoch %d | Train Loss: %.4f (Acc: %.2f%%) | Val Loss: %.4f (Acc: %.2f%%)\n",
               epoch, avg_train_loss, avg_train_acc * 100, avg_val_loss, avg_val_acc * 100))
 }
@@ -185,15 +188,17 @@ for (epoch in 1:num_epochs) {
 
 par(mfrow = c(1, 2))
 # Plot Loss
+y_loss_range <- range(c(history$train_loss, history$val_loss))
 plot(history$epoch, history$train_loss, type = "o", col = "blue",
-     ylim = range(c(history$train_loss, history$val_loss)),
+     ylim = y_loss_range,
      xlab = "Epoch", ylab = "Loss", main = "NiN Loss Curve", lwd = 2)
 lines(history$epoch, history$val_loss, type = "o", col = "red", lwd = 2)
 legend("topright", legend = c("Train", "Val"), col = c("blue", "red"), lty = 1, lwd = 2, cex = 0.8)
 
 # Plot Accuracy
+y_acc_range <- range(c(history$train_acc, history$val_acc))
 plot(history$epoch, history$train_acc, type = "o", col = "blue",
-     ylim = range(c(history$train_acc, history$val_acc)),
+     ylim = c(min(y_acc_range) - 0.05, 1.0), # Adaptive limits for better visibility
      xlab = "Epoch", ylab = "Accuracy", main = "NiN Accuracy Curve", lwd = 2)
 lines(history$epoch, history$val_acc, type = "o", col = "red", lwd = 2)
 legend("bottomright", legend = c("Train", "Val"), col = c("blue", "red"), lty = 1, lwd = 2, cex = 0.8)
